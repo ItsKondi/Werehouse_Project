@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+import csv
 
 items = [ 
     {"name" : "tomatoes", "quantity" : 345, "unit" : "kg", "unit_price": 9.40},
@@ -18,8 +20,11 @@ def add_item():
                     print("Coming back to the main menu...")
                     break
                 if any(item['name'] == name for item in items):
-                    print("Item already exists. Try again!")
-                    continue
+                    quantity = float(input("Enter the quantity: "))
+                    items[items.index(next(item for item in items if item['name'] == name))]['quantity'] += quantity
+                    print("Item already exists. Quantity updated.")
+                    break
+                    
 
                 quantity = float(input("Enter the quantity: "))
                 unit_name = input("Enter the unit: ").strip().lower()
@@ -55,40 +60,42 @@ def sell_item():
                 print("Coming back to the main menu...")
                 break
 
-            if not any(item['name'] == name for item in items):
+            item = next((i for i in items if i['name'] == name), None)
+            if not item:
                 print("Item not found. Try again!")
                 continue
 
             quantity = float(input("Enter the quantity to sell: "))
             if quantity <= 0:
-                print("Wrong data. Try again!")
+                print("Quantity must be greater than 0. Try again!")
                 continue
 
-            for item in items:
-                if item['name'] == name:
-                    if item['quantity'] < quantity:
-                        print(f"Not enough items in stock. Available: {item['quantity']} {item['unit']}. Try again!")
-                        break
-                    else:
-                        print()
-                        item['quantity'] -= quantity
-                        print(f"Sold {quantity} {item['unit']} of {name} for {quantity*item['unit_price']:.2f} PLN. Current warehouse status:")
-                        sold_itmes.append({
-                            "name": name,
-                            "quantity": quantity,
-                            "unit": item['unit'],
-                            "unit_price": item['unit_price']
-                        })
-                        print()
-                        get_items(items)
-                        print()
-                        
-                        return 
-            break
+            if item['quantity'] < quantity:
+                print(f"Not enough items in stock. Available: {item['quantity']} {item['unit']}. Try again!")
+                continue
+
+            item['quantity'] -= quantity
+            print(f"Sold {quantity} {item['unit']} of {name} for {quantity * item['unit_price']:.2f} PLN.")
+
+            sold_item = next((si for si in sold_itmes if si['name'] == name), None)
+            if sold_item:
+                sold_item['quantity'] += quantity
+            else:
+                sold_itmes.append({
+                    "name": name,
+                    "quantity": quantity,
+                    "unit": item['unit'],
+                    "unit_price": item['unit_price']
+                })
+            print("\nCurrent warehouse status:")
+            get_items(items)
+            print("\nSold items status:")
+            get_items(sold_itmes)
+
+            return
 
         except ValueError:
-            print("Wrong data type. Try again!")
-            continue
+            print("Invalid input. Please try again!")
 
 def get_costs():
     total_costs = sum(item['unit_price'] * item['quantity'] for item in items)
@@ -110,7 +117,74 @@ def get_items(items):
     print(f"{'Name':<15}{'Quantity':<10}{'Unit':<10}{'Unit Price PLN':<15}")
     print(f"{(floor * 4):<15}{(floor * 8):<10}{(floor * 4):<10}{(floor * 15):<15}")
     for item in items:
-        print(f"{item['name']:<15}{item['quantity']:<10}{item['unit']:<10}{(item['unit_price']):.2f}")
+        print(f"{item['name']:<15}{item['quantity']:<10.2f}{item['unit']:<10}{(item['unit_price']):.2f}")
+
+def load_items_from_csv(file_path = "D:/Konrad/Desktop/codding/kodilla/werehouse_project/werehouse.csv"):
+    items.clear()
+    try:
+        with open(file_path, mode='r', newline='') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                item = {
+                    "name": row["name"],
+                    "quantity": float(row["quantity"]),
+                    "unit": row["unit"],
+                    "unit_price": float(row["unit_price"])
+                }
+                items.append(item)
+        print("Items loaded successfully!")
+        
+    except FileNotFoundError:
+        print("File not found. Starting with default items.")
+        return
+    
+def load_profit_from_csv(file_path = "D:/Konrad/Desktop/codding/kodilla/werehouse_project/profit.csv"):
+    sold_itmes.clear()
+    try:
+        with open(file_path, mode='r', newline='') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                item = {
+                    "name": row["name"],
+                    "quantity": float(row["quantity"]),
+                    "unit": row["unit"],
+                    "unit_price": float(row["unit_price"])
+                }
+                sold_itmes.append(item)
+        print("Profit loaded successfully!")
+
+    except FileNotFoundError:
+        print("File not found. Starting with default items.")
+        return
+    
+def export_items_to_csv(file_path = "D:/Konrad/Desktop/codding/kodilla/werehouse_project/werehouse.csv"):
+    try:
+        with open(file_path, mode='w', newline='') as csvfile:
+            fieldnames = ["name", "quantity", "unit", "unit_price"]
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            for item in items:
+                writer.writerow(item)
+        print("Items saved successfully!")
+    except FileNotFoundError:
+        print("File not found. Starting with default items.")
+        return
+    
+def export_profit_to_csv(file_path = "D:/Konrad/Desktop/codding/kodilla/werehouse_project/profit.csv"):
+    try:
+        with open(file_path, mode='w', newline='') as csvfile:
+            fieldnames = ["name", "quantity", "unit", "unit_price"]
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            for item in sold_itmes:
+                writer.writerow(item)
+        print("Profit saved successfully!")
+    except FileNotFoundError:
+        print("File not found. Starting with default items.")
+        return
+    
+load_items_from_csv()
+load_profit_from_csv()
 
 while True:
     prompt = input("What would you like to do? ").strip().lower()
@@ -122,6 +196,12 @@ while True:
         sell_item()
     elif prompt == "show_revenue":
         show_revenue()
+    elif prompt == "load":
+        load_items_from_csv()
+        load_profit_from_csv()
+    elif prompt == "save":
+        export_items_to_csv()
+        export_profit_to_csv()
     elif prompt == "exit":
         print("Exiting the program...")
         exit(0)
